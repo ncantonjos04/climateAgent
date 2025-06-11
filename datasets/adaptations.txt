@@ -1,0 +1,21 @@
+Weather Element	Adaptation options
+Temperature	Planting drought resistant crops
+Temperature	Planting just before the onset of rains
+Temperature	Planting early maturing crops
+Temperature	Irrigation
+Temperature	Planting immediately after the onset of the rains
+Temperature	Water harvesting
+Temperature	Switching from crop farming to livestock keeping
+Precipitation	Planting drought resistant crops
+Precipitation	Irrigation
+Precipitation	Planting just before the onset of rains
+Precipitation	Planting immediately after the onset of the rains
+Precipitation	Use of hybrid crop varieties
+Precipitation	Crop diversification
+Precipitation	Use of pesticides
+Precipitation	Use of fertilizer
+Precipitation	Use of manure
+Precipitation	Water harvesting
+Precipitation	Soil conservation
+Precipitation	Mixed crop and livestock farming
+Precipitation	Switching from crop farming to livestock keeping
