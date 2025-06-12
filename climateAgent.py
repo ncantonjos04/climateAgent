@@ -1,16 +1,11 @@
 import os 
-import re
 import json
 import asyncio
 import requests
-import functools
 import pandas as pd
 from pathlib import Path
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
-
-from azure.identity import DefaultAzureCredential
-from azure.ai.projects import AIProjectClient 
 
 from semantic_kernel.functions.kernel_arguments import KernelArguments
 from semantic_kernel.agents import ChatCompletionAgent, AgentGroupChat
@@ -23,12 +18,9 @@ from semantic_kernel.connectors.ai.open_ai import OpenAIChatCompletion
 from semantic_kernel.contents import AuthorRole, ChatMessageContent
 from semantic_kernel.functions import KernelFunctionFromPrompt, kernel_function
 
-
+# Load .env file from outer directory
 env_path = Path(__file__).resolve().parent.parent / '.env'
 load_dotenv(dotenv_path=env_path)
-
-project_endpoint = os.getenv('AZURE_AI_PROJECT_ENDPOINT')
-connection_name = os.getenv('AZURE_STORAGE_CONNECTION_NAME')
 
 # Connect to the NASA POWER API to get accurate weather data in the chosen location
 # returns Total Precipitation (T2M) and Temperature at 2 Meters (T2M)
@@ -51,33 +43,6 @@ async def get_NASA_data (latitude: float, longitude: float, start_year: int, end
         data = response.text
         with open('./datasets/weather_data.txt', "a") as file:
             file.write(f"{data}\n")
-        
-    
-        #Add/Update the weather_data.txt to the climateDatabase (AzureStorage)
-#       script_dir = os.path.dirname(os.path.abspath(__file__))
-#       data_folder = os.path.join(script_dir, "datasets")
-
-#        with DefaultAzureCredential() as credential:
-#            with AIProjectClient (endpoint = project_endpoint,credential=credential) as client:
-# 
-            # search for, then increment dataset version by 1
-#                versions = []
-#              for d in client.datasets.list():
-#                    if d.name == "climateDatabase":
-#                       try:
-#                          versions.append(float(d.version))
-#                      except ValueError:
-#                          pass  # skip non-numeric versions
-#             latest_version = max(versions, default=0.0)
-#             new_version = str(latest_version + 1.0)
-
-#               dataset = client.datasets.upload_folder(
-#                  name = "climateDatabase",
-#                  version = new_version,
-#                  folder=data_folder,
-#                  connection_name=connection_name,
-#                  file_pattern=re.compile(r"\.(txt|csv|md)$", re.IGNORECASE)
-#                  )
         return data
     data = await asyncio.get_event_loop().run_in_executor(None, blocking_fetch)
     return data
@@ -89,7 +54,7 @@ def create_kernel_with_chat_completion() -> Kernel:
     kernel = Kernel()
 
     client = AsyncOpenAI(
-        api_key=os.getenv("GITHUB_TOKEN"),
+        api_key=os.getenv("GITHUB_TOKEN"), # Personal Access Token on Github
         base_url= "https://models.inference.ai.azure.com/")
     
     kernel.add_service(
@@ -139,7 +104,16 @@ async def main():
         is the final solution after the other agents talk.
     - You are not the one coming up with a solution, it is the SolutionAgent and SolutionReviewerAgent that is doing that. Your only job is to provide the answers that they give after they finalize an answer at the end of the conversation. You should be the last message.
     - Only speak again after the SolutionReviewerAgent gives clear approval.
-    - When that happens, summarize the solution, include any final recommendations it gave in its most recent message, and indicate the conversation is complete by explicitly saying "This conversation is complete."
+    - When that happens, summarize the solution. 
+
+    If the SolutionReviewerAgent suggests improvements in its most recent message, YOU MUST IMPLEMENT those improvements yourself before presenting the final message. Do not tell the user to do anything or mention that further guidance should be provided — instead, YOU must provide that guidance directly in your own message.
+
+    For example:
+    - If the SolutionReviewerAgent says to recommend specific systems, you must research or generate examples (e.g., rooftop harvesting, underground tanks).
+    - If it suggests expanding on maintenance, you must list maintenance tips (e.g., clean filters monthly, check tank integrity).
+
+    Present your final response as a clear, self-contained summary of the improved solution, and end with: **"This conversation is complete."**
+
     """
     prompt_agent = ChatCompletionAgent(
         kernel = kernel,
@@ -231,12 +205,11 @@ async def main():
     - Soil and water management practices suitable for semi-arid environments.
     - Community or policy-level adaptation recommendations, if relevant.
 
-    Focus on practical advice that local farmers in Kitui can implement to reduce risk and improve yields under climate stress.
+    Focus on practical advice that local farmers can implement to reduce risk and improve yields under climate stress.
     Only provide a single recommendation per response.
     You're laser focused on the goal at hand.
     Don't waste time with chit chat.
     Consider suggestions when refining an idea.
-    Keep it brief, up to 2 lines.
 
     Keep your answers clear, concise, and grounded in the local context.
     """
@@ -271,8 +244,8 @@ async def main():
     == Output ==
     - Provide a concise evaluation highlighting strengths and any concerns.
     - Suggest specific refinements or alternative approaches if needed.
-    - Keep it brief, up to 2 lines.
     - Approve the solution if it meets all criteria clearly by explicitly stating "This solution is completely approved."
+    - Do not state "This solution is completely approved" if there the solution is still in need of further improvement.
 
     Maintain a professional, objective, and supportive tone aimed at helping local farmers adapt effectively to climate challenges.
     """
@@ -355,7 +328,7 @@ async def main():
     )
 
     # User Input
-    user_input = "What are the weather issues in Bayonne, New Jersey and what can farmers do to protect their crops?"
+    user_input = "What are the climate issues in Kitui, Kenya and what can farmers do to protect their crops?"
     print(f"User Prompt: {user_input}")
 
     # Logging the agent conversation
