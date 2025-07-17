@@ -1,0 +1,26 @@
+Input 32
+PromptAgent tokens: 611
+ParseAgent tokens: 0
+ForecastAgent tokens: 8105
+WeatherHistoryAgent tokens: 0
+SolutionAgent tokens: 3866
+ReviewerAgent tokens: 11608
+Total tokens: 24190
+
+Input 33
+PromptAgent tokens: 500
+ParseAgent tokens: 0
+ForecastAgent tokens: 0
+WeatherHistoryAgent tokens: 0
+SolutionAgent tokens: 6170
+ReviewerAgent tokens: 15236
+Total tokens: 21906
+
+Input 34
+PromptAgent tokens: 5823
+ParseAgent tokens: 0
+ForecastAgent tokens: 0
+WeatherHistoryAgent tokens: 0
+SolutionAgent tokens: 3513
+ReviewerAgent tokens: 4942
+Total tokens: 14278
