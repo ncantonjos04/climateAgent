@@ -24,3 +24,20 @@ WeatherHistoryAgent tokens: 0
 SolutionAgent tokens: 3513
 ReviewerAgent tokens: 4942
 Total tokens: 14278
+    Input: 35
+    PromptAgent tokens: 611
+    ParseAgent tokens: 0
+    ForecastAgent tokens: 0
+    WeatherHistoryAgent tokens: 0
+    SolutionAgent tokens: 13145
+    ReviewerAgent tokens: 9215
+    Total tokens: 22971
+
+    Input: 36
+    PromptAgent tokens: 611
+    ParseAgent tokens: 0
+    ForecastAgent tokens: 3932
+    WeatherHistoryAgent tokens: 0
+    SolutionAgent tokens: 0
+    ReviewerAgent tokens: 3553
+    Total tokens: 8096
