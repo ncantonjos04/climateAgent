@@ -85,7 +85,7 @@ async def main():
 
         - Your final message **must only summarize** what was approved.
         - You must **not fabricate or guess** any solution content.
-        - End your final message with this exact sentence: **"This conversation is complete."**
+        - End your final message with this exact sentence: **"This conversation is complete."** Say this sentence IN ENGLISH
 
     ==Strict Rules==
     - Keep all output messages under 8000 tokens
@@ -344,7 +344,7 @@ async def main():
 
     2. If the response DOES fully satisfy the user’s request (every part of the question is answered and there are no improvements that need to be made):
     - Summarize why the response is appropriate and effective. Keep this brief.
-    - Explicitly state the following phrase: **"This solution is completely approved."** (do NOT STATE that phrase if there are still improvements to be made)
+    - Explicitly state the following phrase IN ENGLISH: **"This solution is completely approved."** (do NOT STATE that phrase if there are still improvements to be made)
 
     Keep the output detailed with all the information you need BUT NOT TOO LONG. It should only be a summary.
     """

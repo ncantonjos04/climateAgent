@@ -3,7 +3,7 @@ import asyncio
 import requests
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 from semantic_kernel.kernel import Kernel
@@ -48,8 +48,8 @@ async def get_NASA_data (location: str, start_year: int, end_year: int):
         
 @kernel_function
 async def get_forecast(location: str, forecast_date):  # date: YYYY-MM-DD
-    api_key=os.getenv("GEO_API_KEY")
     url = f"https://api.opencagedata.com/geocode/v1/json"
+    api_key="131ec2048ede4151a6af8cc07e16c7a1"
     params = {"q": location, "key":api_key}
     response = requests.get(url, params = params)
     data = response.json()
@@ -68,10 +68,10 @@ async def get_forecast(location: str, forecast_date):  # date: YYYY-MM-DD
         if forecast_date == 0:
             forecast_date = now
         elif forecast_date != 0:
-            forecast_date = datetime.today() + timedelta(days=forecast_date)
+            forecast_date = datetime.now(timezone.utc).date() + timedelta(days=forecast_date)
         forecast_date = forecast_date.strftime("%Y-%m-%d")
 
-    api_key = os.getenv("OPEN_WEATHER_API_KEY")
+    api_key = "1d9a7ebd33dc63b54da30884978f8e99"
     url = "https://api.openweathermap.org/data/3.0/onecall"
     params = {
         "appid": api_key,
@@ -90,22 +90,31 @@ async def get_forecast(location: str, forecast_date):  # date: YYYY-MM-DD
     # Find the matching forecast day
     forecast_day = None
     for day in data.get("daily", []):
-        dt = datetime.fromtimestamp(day["dt"]).strftime("%Y-%m-%d")
-        if dt == forecast_date:
-            forecast_day = day
-            break
-
+        dt = datetime.fromtimestamp(day["dt"], tz=timezone.utc).date().isoformat()
+        forecast_day = day
+        break
     if not forecast_day:
-        return f"No forecast found for {forecast_date}."
+        return f"No forecast found for {forecast_date}. API Returns: {data}"
 
     summary = {
         "date": forecast_date,
+        "summary": forecast_day.get("summary", ""),
         "temp_day": forecast_day["temp"]["day"],
         "temp_night": forecast_day["temp"]["night"],
         "weather": forecast_day["weather"][0]["description"],
-        "precipitation_mm": forecast_day.get("rain", 0.0)
+        "precipitation_mm": forecast_day.get("rain", 0.0),
+        "humidity": forecast_day.get("humidity", None),
+        "wind_speed_kph": round(forecast_day.get("wind_speed", 0) * 3.6, 1),
+        "wind_direction_deg": forecast_day.get("wind_deg", None),
+        "uv_index": forecast_day.get("uvi", None),
+        "cloud_cover_percent": forecast_day.get("clouds", None),
+        "dew_point": forecast_day.get("dew_point", None),
+        "sunrise": datetime.fromtimestamp(forecast_day["sunrise"]).strftime("%H:%M"),
+        "sunset": datetime.fromtimestamp(forecast_day["sunset"]).strftime("%H:%M")
     }
 
+    with open('./datasets/weather_data.txt', "a") as file:
+        file.write(f"{summary}\n")
     return summary
 
 @kernel_function
