@@ -10,43 +10,7 @@ from semantic_kernel.kernel import Kernel
 from semantic_kernel.connectors.ai.open_ai import OpenAIChatCompletion
 from semantic_kernel.functions import  kernel_function
 
-# Load .env file 
 load_dotenv()
-
-# Connect to the NASA POWER API to get accurate weather data in the chosen location
-# returns Total Precipitation (T2M) and Temperature at 2 Meters (T2M)
-
-@kernel_function
-async def get_NASA_data (location: str, start_year: int, end_year: int):
-    api_key= os.getenv("GEO_API_KEY")
-    url = f"https://api.opencagedata.com/geocode/v1/json"
-    params = {"q": location, "key":api_key}
-    response = requests.get(url, params = params)
-    data = response.json()
-    coords = data["results"][0]["geometry"]
-    
-    def blocking_fetch():
-    # Connect to NASA POWER API with url using the above parameters
-        base_url = (
-            f"https://power.larc.nasa.gov/api/temporal/monthly/point?"
-            f"start={start_year}&end={end_year}"
-            f"&latitude={coords["lat"]}&longitude={coords["lng"]}"
-            f"&community=ag"
-            f"&parameters=T2M,PRECTOT"
-            f"&format=csv&header=false"
-        )
-
-    # Write results to a .txt file  (including the header)
-
-
-        data = response.text
-        with open('./datasets/weather_data.txt', "a") as file:
-            file.write(f"{data}\n")
-        return data
-    data = await asyncio.get_event_loop().run_in_executor(None, blocking_fetch)
-    return data
-        
-@kernel_function
 async def get_forecast(location: str, forecast_date):  # date: YYYY-MM-DD
     url = f"https://api.opencagedata.com/geocode/v1/json"
     api_key=os.getenv("GEO_API_KEY")
@@ -117,9 +81,10 @@ async def get_forecast(location: str, forecast_date):  # date: YYYY-MM-DD
         file.write(f"{summary}\n")
     return summary
 
-@kernel_function
-async def get_adaptations():
-    with open('./datasets/adaptations.txt', "r") as file:
-        content = file.read()
-        return content
+async def main():
+    print (await get_forecast("Kitui, Kenya", 0))
 
+if __name__ == "__main__":
+    asyncio.run(main())
+
+    
