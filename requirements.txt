@@ -6,3 +6,4 @@ pandas
 semantic-kernel>=1.29.0
 semantic-kernel[azure]
 semantic-kernel[mcp]
+langdetect
