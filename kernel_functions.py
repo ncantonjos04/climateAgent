@@ -122,4 +122,3 @@ async def get_adaptations():
     with open('./datasets/adaptations.txt', "r") as file:
         content = file.read()
         return content
-

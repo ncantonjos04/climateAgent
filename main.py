@@ -10,6 +10,7 @@ from kernel_functions import get_NASA_data, get_adaptations, get_forecast
 
 from semantic_kernel.functions.kernel_arguments import KernelArguments
 from semantic_kernel.agents import ChatCompletionAgent, AgentGroupChat
+from semantic_kernel.contents.chat_history import ChatHistory
 from semantic_kernel.agents.strategies import (
     KernelFunctionSelectionStrategy,
     KernelFunctionTerminationStrategy
@@ -511,7 +512,29 @@ async def main():
     start_year = parsed["start_year"]
     end_year = parsed["end_year"]
     forecast_date = parsed["forecast_date"]
-    
+
+
+    while not parsed["location"]:
+        user_message = input('Please enter a location (e.g., city, state, or country):')
+        await chat.add_chat_message(ChatMessageContent(
+            role=AuthorRole.USER,
+            content=user_message
+        ))
+        # Re-run ParseAgent to extract location from the correction
+        correction_responses = []
+        async for correction_response in parse_agent.invoke(messages=user_message):
+            correction_responses.append(correction_response)
+
+        try:
+            parsed_update = json.loads(correction_responses[0].content.content)
+            if parsed_update["location"]:
+                parsed["location"] = parsed_update["location"]
+                print(f"Updated location: {parsed['location']}")
+            else:
+                print("Still couldn't extract location. Please try again.")
+        except Exception as e:
+            print("Error parsing correction response. Please try again.")
+
     history_args = KernelArguments(
     location=location,
     start_year=start_year,
@@ -551,11 +574,14 @@ async def main():
             function_name="get_adaptations"
         )
 
+        adaptation_text= str(adaptation_examples.value)
+
         await chat.add_chat_message(ChatMessageContent(
             role=AuthorRole.USER,
-            content= adaptation_examples
+            content= adaptation_text
         ))
 
+    
     async for content in chat.invoke():
         # Save output
         output_list = [input_id, sequence_number, content.name, content.content]
@@ -582,9 +608,11 @@ async def main():
 
         total_tokens += this_total
 
+        if sequence_number > 5:
+            await chat.reduce_history()
+
 
         print(f"==={content.name or '*'}===: '{content.content}\n'")
-
         if (
             "This conversation is complete." in content.content
             and content.name == "PromptAgent"
