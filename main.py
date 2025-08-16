@@ -28,7 +28,7 @@ def create_kernel_with_chat_completion() -> Kernel:
     kernel = Kernel()
 
     client = AsyncOpenAI(
-        api_key=os.getenv("GITHUB_TOKEN"), # Personal Access Token on Github
+        api_key=os.getenv("OPENAI_API_KEY"), # Personal Access Token on Github
         base_url= "https://models.inference.ai.azure.com/")
 
     kernel.add_service(
