@@ -35,13 +35,8 @@ async def get_NASA_data (location: str, start_year: int, end_year: int):
             f"&parameters=T2M,PRECTOT"
             f"&format=csv&header=false"
         )
-
-    # Write results to a .txt file  (including the header)
-
-
+        response = requests.get(base_url)
         data = response.text
-        with open('./datasets/weather_data.txt', "a") as file:
-            file.write(f"{data}\n")
         return data
     data = await asyncio.get_event_loop().run_in_executor(None, blocking_fetch)
     return data
@@ -71,7 +66,7 @@ async def get_forecast(location: str, forecast_date):  # date: YYYY-MM-DD
             forecast_date = datetime.now(timezone.utc).date() + timedelta(days=forecast_date)
         forecast_date = forecast_date.strftime("%Y-%m-%d")
 
-    api_key = "1d9a7ebd33dc63b54da30884978f8e99"
+    api_key = os.getenv('OPEN_WEATHER_KEY')
     url = "https://api.openweathermap.org/data/3.0/onecall"
     params = {
         "appid": api_key,
