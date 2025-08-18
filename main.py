@@ -3,6 +3,8 @@ import json
 import asyncio
 import pandas as pd
 from langdetect import detect
+from semantic_kernel.exceptions.service_exceptions import ServiceResponseException
+from semantic_kernel.exceptions.function_exceptions import FunctionExecutionException
 from datasets.languages import languages
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
@@ -23,7 +25,7 @@ from semantic_kernel.functions import KernelFunctionFromPrompt
 # Load .env file 
 load_dotenv()
 
-# Create kernel
+# Initialize Knowledge Base (OpenAIChatCompletion)
 def create_kernel_with_chat_completion() -> Kernel:
     kernel = Kernel()
 
@@ -34,10 +36,10 @@ def create_kernel_with_chat_completion() -> Kernel:
     kernel.add_service(
         OpenAIChatCompletion(
             ai_model_id="gpt-4o",
-            async_client=client
+            async_client=client,
         )
     )
-
+# Add Tools
     kernel.add_function(
         plugin_name="climate_tools",
         function_name = "get_NASA_data", 
@@ -89,7 +91,7 @@ async def main():
         - End your final message with this exact sentence: **"This conversation is complete."** Say this sentence IN ENGLISH
 
     ==Strict Rules==
-    - Keep all output messages under 8000 tokens
+    - Keep all output messages under 8000 tokens. Make sure messages arent too long.
     - DO NOT generate or suggest any solutions or adaptations.
     - DO NOT say that a solution was approved unless the Reviewer Agent explicitly said: `"This solution is completely approved."`
     - DO NOT mention or impersonate any other agents.
@@ -108,7 +110,8 @@ async def main():
         name = PROMPT_NAME,
         instructions = PROMPT_INSTRUCTIONS
     )
-    #Parse Agent
+
+# Parse Agent
     PARSE_NAME="ParseAgent"
     PARSE_INSTRUCTIONS="""
     You are an AI agent whose job is to extract structured information from a user's natural language request. 
@@ -169,8 +172,8 @@ async def main():
         name=PARSE_NAME,
         instructions=PARSE_INSTRUCTIONS
     )
-# Forecast Agent
 
+# Forecast Agent
     FORECAST_NAME="ForecastAgent"
     FORECAST_INSTRUCTIONS="""
     == Objective == 
@@ -196,7 +199,7 @@ async def main():
     -For the forecast_date argument of get_forecast: ONLY USE the input argument labeled "date"
 
     ==Output==
-    - Keep all output messages under 8000 tokens
+    - Keep all output messages under 8000 tokens. Make sure messages arent too long.
     - Answer using the language and dialect used by the user. For example, if they are talking in Spanish, respond in Spanish. 
     - Use the information obtained by get_forecast(location, forecast_date) to answer the user's question.
     - Only give information that asked for and is absolutely necessary.
@@ -242,7 +245,7 @@ async def main():
     - Be as detailed as possible but also be brief. Not too many lines of output.
     
     == Rules ==
-    - Keep all output messages under 8000 tokens
+    - Keep all output messages under 8000 tokens. Make sure messages arent too long.
     - Do NOT generate a solution or adaptation.
     - Do NOT talk about future weather or predictions.
     - Do NOT mention any kernel functions or other agents.
@@ -262,8 +265,8 @@ async def main():
     == Objective ==
     Your goal is to:
     1. Provide clear, actionable solutions to answer the queries of the user. 
-    2. Suggestions must answer the user's questoin. They can include but are not limited to agricultural techniques that suit the local climate and socio-economic conditions.
-    3. Recommend sustainable practices to answer the user's question improve resilience and productivity under agricultural problems the user may have within their local community.
+    2. Suggestions must answer the user's question. They can include but are not limited to agricultural techniques that suit the local climate and socio-economic conditions. You can provide brief forecast and historical weather conditions from the chat context as well.
+    3. Recommend sustainable practices and a few implementation steps to answer the user's question to improve resilience and productivity under agricultural problems the user may have within their local community. You can include the names of local resources of help according to the user's question and location.
 
     == Inputs ==
     You will receive the following inputs to assist you in formulating your answer.
@@ -275,9 +278,9 @@ async def main():
     Use these inputs to answer the user's query.
 
     == Output ==
-    Keep all output messages under 8000 tokens
+    Keep all output messages under 8000 tokens. Make sure messages arent too long.
     Answer using the language and dialect used by the user. For example, if they are talking in Swahili, translate your response in Swahili for your output.
-    Your responses should be complete, practical to the local farmers of that area. Make sure they can implement to reduce risk and improve yields under local conditions.
+    Your responses should be complete, practical to the smallscale and large local farmers of that area. Make sure they can implement to reduce risk and improve yields under local conditions.
     Your answer should be detailed and complete.
     Make sure it answers every part of the user's input. If the user asks more than one question, make sure the solution provided answers every part of the question.
         For example: For the input: "What are the climate problems of Guatemala and what can farmers do to protect their crops. What if there is sudden heavy rainfall in that area?", make sure to answer
@@ -330,10 +333,10 @@ async def main():
         what the climate problems already are, what farmers can do to protect their crops, AND what to do if there is heavy rainfall. Answer every sentence. If any part is missing, mention it explicitly and do not mark the solution as completely approved.
         - **Practical** – can realistically be implemented by local farmers.
         - **Contextually relevant** – suitable for the geographic, cultural, and economic context of the location.
-        - **Scientifically sound** – consistent with current knowledge of climate adaptation, weather patterns, and agriculture.
+        - **Scientifically sound** – consistent with current knowledge of climate adaptation, weather patterns, and agriculture. They can also list local resources such as organizations like  KCSAP, NDMA, ACRE Africa
 
     == Output ==
-    Make the output less than 8000 tokens.
+    Make the output less than 8000 tokens. Make sure messages arent too long.
     Answer using the language and dialect used by the user. For example, if they are talking in Swahili, translate your response in Swahili for your output.
     Provide one of the following:
 
@@ -354,6 +357,28 @@ async def main():
         instructions = REVIEWER_INSTRUCTIONS
     )
 
+# AgentGroupChatManager
+    AgentGroupChatManager = AgentGroupChat(
+        agents = [prompt_agent, weather_history_agent, forecast_agent, solution_agent, reviewer_agent, parse_agent],
+        termination_strategy=KernelFunctionTerminationStrategy(
+            agents=[reviewer_agent],
+            function=termination_function,
+            kernel=kernel,
+            result_parser=lambda result: str(result.value).strip().lower() == "yes",
+            history_variable_name="history",
+            maximum_iterations=6,
+        ),
+        selection_strategy=KernelFunctionSelectionStrategy(
+            function=selection_function,
+            kernel = kernel,
+            result_parser=lambda result: (
+                None if str(result.value).strip().lower() == "none" else
+                str(result.value[0]) if result.value and len(result.value) > 0 else None
+            ),
+            agent_variable_name="agents",
+            history_variable_name="history",
+        )
+    )
     termination_function = KernelFunctionFromPrompt(
         function_name="termination",
         prompt="""
@@ -371,7 +396,6 @@ async def main():
         {{$history}}
         """
     )
-
     selection_function = KernelFunctionFromPrompt(
         function_name="selection",
         prompt=f"""
@@ -419,90 +443,68 @@ async def main():
         {{{{ $history }}}}
         """
     ) 
-     # Create the AgentGroupChat
 
-    chat = AgentGroupChat(
-        agents = [prompt_agent, weather_history_agent, forecast_agent, solution_agent, reviewer_agent, parse_agent],
-        termination_strategy=KernelFunctionTerminationStrategy(
-            agents=[reviewer_agent],
-            function=termination_function,
-            kernel=kernel,
-            result_parser=lambda result: str(result.value).strip().lower() == "yes",
-            history_variable_name="history",
-            maximum_iterations=6,
-        ),
-        selection_strategy=KernelFunctionSelectionStrategy(
-            function=selection_function,
-            kernel = kernel,
-            result_parser=lambda result: (
-                None if str(result.value).strip().lower() == "none" else
-                str(result.value[0]) if result.value and len(result.value) > 0 else None
-            ),
-            agent_variable_name="agents",
-            history_variable_name="history",
-        )
-    )
-
-    # Agent Tokens
+    # Recording Agent Tokens
     promptAgent_tokens=0
     parse_tokens=0
     forecast_tokens=0
     history_tokens=0
     solution_tokens=0
     reviewer_tokens=0
-
-    # Total tokens
     total_tokens=0
 
     # User Input
     user_input = input("User Prompt: ")
 
     # Logging the agent conversation
-    # Create a DataFrame
     input_id = pd.read_csv('./logs/input.csv')['InputID'].astype(int).max() +1
     sequence_number = 1 
-    # Track inputs and label them with IDs
     input_df = pd.DataFrame( columns = ['InputID', 'Statement'])
     input_df.loc[len(input_df)] = {
         'InputID': input_id,
         'Statement': user_input
     }
-    # Put this dataframe in a csv file
     input_df.to_csv('logs/input.csv', index=False, mode='a', header=False)
     
 
     output_df = pd.DataFrame( columns = ['InputID', 'SequenceNumber', 'AgentName', 'Output'])
     output_list = list()
 
-    # Process User Language
+    # Multi-lingual support
     detected_language = detect(user_input)
     user_language = languages.get(detected_language, 'English')
     language_context = (f"The user's language is {user_language}")
 
-    await chat.add_chat_message(ChatMessageContent(
+    await AgentGroupChatManager.add_chat_message(ChatMessageContent(
         role=AuthorRole.USER,
         content=language_context
     ))
     
-    # Begin the conversaton. Give the user message to the agent
-    await chat.add_chat_message(ChatMessageContent(role=AuthorRole.USER, content=user_input))
+    # Prompt Agent: begins the conversaton. Give the user message to the prompt agent.
+    await AgentGroupChatManager.add_chat_message(ChatMessageContent(role=AuthorRole.USER, content=user_input))
 
 
-    # Parse the user_input to find the paramters so the weather agents can use it.
+    # Parse Agent: parse user_input to find the parameters required.
     responses = []
-    async for response in parse_agent.invoke(messages=user_input):
-        responses.append(response)
-        if isinstance (response, ChatMessageContent) and hasattr(response, "metadata"):
-            usage= response.metadata.get("usage", {})
-            this_prompt_tokens = usage.get("prompt_tokens")
-            this_completion_tokens=usage.get("completion_tokens")
-            this_total= this_prompt_tokens+this_completion_tokens
-            parse_tokens +=this_total
-            total_tokens+=this_total
-
-
+    try:
+        async for response in parse_agent.invoke(messages=user_input):
+            responses.append(response)
+            if isinstance (response, ChatMessageContent) and hasattr(response, "metadata"):
+                usage= response.metadata.get("usage", {})
+                this_prompt_tokens = usage.get("prompt_tokens")
+                this_completion_tokens=usage.get("completion_tokens")
+                this_total= this_prompt_tokens+this_completion_tokens
+                parse_tokens +=this_total
+                total_tokens+=this_total
+    except json.decoder.JSONDecodeError as e:
+        print("There was a problem parsing the response. Please restart AgroAskAI and try again.")
+        AgentGroupChatManager.is_complete = True
+        # Log this in output_df
+        output_list = [input_id, sequence_number, "System", "There was a problem parsing the response. Please restart AgroAskAI and try again."]
+        output_Series = pd.Series(output_list, index=['InputID', 'SequenceNumber', 'AgentName', 'Output'])
+        output_df = pd.concat([output_df, output_Series.to_frame().T], ignore_index=True)
+        return
     print(f"Raw parse agent response: {responses[0].content.content}")
-
     parsed = json.loads(responses[0].content.content)  
 
 
@@ -512,14 +514,36 @@ async def main():
     end_year = parsed["end_year"]
     forecast_date = parsed["forecast_date"]
 
-
-    while not parsed["location"]:
-        user_message = input('Please enter a location (e.g., city, state, or country):')
-        await chat.add_chat_message(ChatMessageContent(
+    # Obtain missing values
+    while parsed["user_intent"] not in ["get_solution", "weather_forecast", "weather_history"]:
+        user_message = input(
+            "AgroAskAI answers agriculture-related questions. Try asking about farming, weather forecasts, or past climate trends: "
+        )
+        await AgentGroupChatManager.add_chat_message(ChatMessageContent(
             role=AuthorRole.USER,
             content=user_message
         ))
-        # Re-run ParseAgent to extract location from the correction
+
+        correction_responses = []
+        async for correction_response in parse_agent.invoke(messages=user_message):
+            correction_responses.append(correction_response)
+
+        try:
+            parsed_update = json.loads(correction_responses[0].content.content)
+            if parsed_update["user_intent"] in ["get_solution", "weather_forecast", "weather_history"]:
+                parsed["user_intent"] = parsed_update["user_intent"]
+                print(f"Updated user intent: {parsed['user_intent']}")
+            else:
+                print("Please try again.")
+        except Exception as e:
+            print("Error processing question. Please try again.", e)
+
+    while not parsed["location"]:
+        user_message = input('Please enter a location (e.g., city, state, or country):')
+        await AgentGroupChatManager.add_chat_message(ChatMessageContent(
+            role=AuthorRole.USER,
+            content=user_message
+        ))
         correction_responses = []
         async for correction_response in parse_agent.invoke(messages=user_message):
             correction_responses.append(correction_response)
@@ -534,15 +558,11 @@ async def main():
         except Exception as e:
             print("Error parsing correction response. Please try again.")
 
+    # Weather History
     history_args = KernelArguments(
     location=location,
     start_year=start_year,
     end_year=end_year
-    )
-
-    forecast_args = KernelArguments(
-        location=location,
-        forecast_date = forecast_date
     )
 
     historical_summary = await kernel.invoke(
@@ -550,78 +570,92 @@ async def main():
         function_name="get_NASA_data",
         arguments=history_args
     )
-
+    # Weather Forecast
+    forecast_args = KernelArguments(
+        location=location,
+        forecast_date = forecast_date
+    )
     forecast_summary = await kernel.invoke(
         plugin_name="climate_tools",
         function_name="get_forecast",
         arguments=forecast_args
     )
 
-    weather_context = (
+    context = (
     f"The location is {location}. The user intent is {user_intent}. The user's question is {user_input}. The user's language is {user_language}. The weather forecast is {forecast_summary} and the weather history is {historical_summary}"
 )
-
-    await chat.add_chat_message(ChatMessageContent(
+    # Give Parse Agent responses to AgentGroupChatManager
+    await AgentGroupChatManager.add_chat_message(ChatMessageContent(
         role=AuthorRole.USER,
-        content=weather_context
+        content=context
     ))
-
-    """ if user_intent == "get_solution":
-        # Dynamically obtain adaptation strategies for the solution agent to use
-        adaptation_examples = await kernel.invoke(
-            plugin_name="climate_tools",
-            function_name="get_adaptations"
-        )
-
-        adaptation_text= str(adaptation_examples.value)
-
-        await chat.add_chat_message(ChatMessageContent(
-            role=AuthorRole.USER,
-            content= adaptation_text
-        ))"""
-
     
-    async for content in chat.invoke():
-        # Save output
-        output_list = [input_id, sequence_number, content.name, content.content]
-        output_Series = pd.Series(output_list, index = ['InputID', 'SequenceNumber', 'AgentName', 'Output'])
+    # AgentGroupChatManager: selection process
+    try:
+        async for content in AgentGroupChatManager.invoke():
+            # Save output
+            output_list = [input_id, sequence_number, content.name, content.content]
+            output_Series = pd.Series(output_list, index=['InputID', 'SequenceNumber', 'AgentName', 'Output'])
+            output_df = pd.concat([output_df, output_Series.to_frame().T], ignore_index=True)
+            sequence_number += 1
+
+            # Token Count
+            this_prompt_tokens = content.metadata["usage"].prompt_tokens
+            this_completion_tokens = content.metadata["usage"].completion_tokens
+            this_total = this_prompt_tokens + this_completion_tokens
+
+            if content.name == "PromptAgent":
+                promptAgent_tokens += this_total
+            elif content.name == "ParseAgent":
+                parse_tokens += this_total
+            elif content.name == "ForecastAgent":
+                forecast_tokens += this_total
+            elif content.name == "WeatherHistoryAgent":
+                history_tokens += this_total
+            elif content.name == "SolutionAgent":
+                solution_tokens += this_total
+            elif content.name == "ReviewerAgent":
+                reviewer_tokens += this_total
+
+            total_tokens += this_total
+
+            # Reduce history if too many tokens
+            if total_tokens > 7000:
+                await AgentGroupChatManager.reduce_history()
+
+            print(f"==={content.name or '*'}===: '{content.content}\n'")
+
+            if "This conversation is complete." in content.content and content.name == "PromptAgent":
+                AgentGroupChatManager.is_complete = True
+                break
+
+    except ServiceResponseException as e:
+        if "tokens_limit_reached" in str(e):
+            print("Conversation ended")
+            AgentGroupChatManager.is_complete = True
+            output_list = [input_id, sequence_number, "System", "Conversation ended."]
+            output_Series = pd.Series(output_list, index=['InputID', 'SequenceNumber', 'AgentName', 'Output'])
+            output_df = pd.concat([output_df, output_Series.to_frame().T], ignore_index=True)
+            output_df.to_csv('./logs/output.csv', index=False, mode='a')
+    except FunctionExecutionException as e:
+        print("Rate limit of 50 agent tokens per 86400s exceeded for UserByModelByDay of OpenAI. Please wait 24 hours before retrying AgroAskAI.")
+        AgentGroupChatManager.is_complete = True
+
+        output_list = [input_id, sequence_number, "System", "Conversation ended."]
+        output_Series = pd.Series(output_list, index=['InputID', 'SequenceNumber', 'AgentName', 'Output'])
         output_df = pd.concat([output_df, output_Series.to_frame().T], ignore_index=True)
-        sequence_number += 1
-         # Token Count
-        this_prompt_tokens = content.metadata["usage"].prompt_tokens
-        this_completion_tokens = content.metadata["usage"].completion_tokens
-        this_total = this_prompt_tokens + this_completion_tokens
+        output_df.to_csv('./logs/output.csv', index=False, mode='a')
+        return
+    except json.decoder.JSONDecodeError as e:
+        print("There was a problem parsing the response. Please restart AgroAskAI and try again.")
+        AgentGroupChatManager.is_complete = True
 
-        if content.name == "PromptAgent":
-            promptAgent_tokens += this_total
-        elif content.name == "ParseAgent":
-            parse_tokens += this_total
-        elif content.name == "ForecastAgent":
-            forecast_tokens += this_total
-        elif content.name == "WeatherHistoryAgent":
-            history_tokens += this_total
-        elif content.name == "SolutionAgent":
-            solution_tokens += this_total
-        elif content.name == "ReviewerAgent":
-            reviewer_tokens += this_total
-
-        total_tokens += this_total
-
-        if sequence_number > 5:
-            await chat.reduce_history()
-
-
-        print(f"==={content.name or '*'}===: '{content.content}\n'")
-        if (
-            "This conversation is complete." in content.content
-            and content.name == "PromptAgent"
-        ):
-            chat.is_complete = True
-            break
-
+        output_list = [input_id, sequence_number, "System", "There was a problem parsing the response. Please restart AgroAskAI and try again."]
+        output_Series = pd.Series(output_list, index=['InputID', 'SequenceNumber', 'AgentName', 'Output'])
+        output_df = pd.concat([output_df, output_Series.to_frame().T], ignore_index=True)
+        return
     
     output_df.to_csv('./logs/output.csv', index=False, mode='a')
-    print(f"# IS COMPLETE: {chat.is_complete}")
 
     token_data =f"""
     Input: {input_id}
