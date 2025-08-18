@@ -358,27 +358,6 @@ async def main():
     )
 
 # AgentGroupChatManager
-    AgentGroupChatManager = AgentGroupChat(
-        agents = [prompt_agent, weather_history_agent, forecast_agent, solution_agent, reviewer_agent, parse_agent],
-        termination_strategy=KernelFunctionTerminationStrategy(
-            agents=[reviewer_agent],
-            function=termination_function,
-            kernel=kernel,
-            result_parser=lambda result: str(result.value).strip().lower() == "yes",
-            history_variable_name="history",
-            maximum_iterations=6,
-        ),
-        selection_strategy=KernelFunctionSelectionStrategy(
-            function=selection_function,
-            kernel = kernel,
-            result_parser=lambda result: (
-                None if str(result.value).strip().lower() == "none" else
-                str(result.value[0]) if result.value and len(result.value) > 0 else None
-            ),
-            agent_variable_name="agents",
-            history_variable_name="history",
-        )
-    )
     termination_function = KernelFunctionFromPrompt(
         function_name="termination",
         prompt="""
@@ -443,6 +422,27 @@ async def main():
         {{{{ $history }}}}
         """
     ) 
+    AgentGroupChatManager = AgentGroupChat(
+        agents = [prompt_agent, weather_history_agent, forecast_agent, solution_agent, reviewer_agent, parse_agent],
+        termination_strategy=KernelFunctionTerminationStrategy(
+            agents=[reviewer_agent],
+            function=termination_function,
+            kernel=kernel,
+            result_parser=lambda result: str(result.value).strip().lower() == "yes",
+            history_variable_name="history",
+            maximum_iterations=6,
+        ),
+        selection_strategy=KernelFunctionSelectionStrategy(
+            function=selection_function,
+            kernel = kernel,
+            result_parser=lambda result: (
+                None if str(result.value).strip().lower() == "none" else
+                str(result.value[0]) if result.value and len(result.value) > 0 else None
+            ),
+            agent_variable_name="agents",
+            history_variable_name="history",
+        )
+    )
 
     # Recording Agent Tokens
     promptAgent_tokens=0
@@ -457,7 +457,18 @@ async def main():
     user_input = input("User Prompt: ")
 
     # Logging the agent conversation
-    input_id = pd.read_csv('./logs/input.csv')['InputID'].astype(int).max() +1
+    os.makedirs('./logs', exist_ok=True)  # Create logs directory if it doesn't exist
+    input_csv_path = './logs/input.csv'
+    if not os.path.exists(input_csv_path):
+        # Initialize CSV with headers
+        pd.DataFrame(columns=['InputID', 'Statement']).to_csv(input_csv_path, index=False)
+
+    input_df_existing = pd.read_csv(input_csv_path)
+    if input_df_existing.empty:
+        input_id = 1
+    else:
+        input_id = input_df_existing['InputID'].astype(int).max() + 1
+
     sequence_number = 1 
     input_df = pd.DataFrame( columns = ['InputID', 'Statement'])
     input_df.loc[len(input_df)] = {

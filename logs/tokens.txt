@@ -79,3 +79,75 @@ Total tokens: 8090
     SolutionAgent tokens: 6057
     ReviewerAgent tokens: 9121
     Total tokens: 22025
+
+    Input: 44
+    PromptAgent tokens: 5256
+    ParseAgent tokens: 0
+    ForecastAgent tokens: 0
+    WeatherHistoryAgent tokens: 0
+    SolutionAgent tokens: 3317
+    ReviewerAgent tokens: 4842
+    Total tokens: 13415
+
+    Input: 46
+    PromptAgent tokens: 7964
+    ParseAgent tokens: 0
+    ForecastAgent tokens: 5424
+    WeatherHistoryAgent tokens: 0
+    SolutionAgent tokens: 2997
+    ReviewerAgent tokens: 11220
+    Total tokens: 27605
+
+    Input: 47
+    PromptAgent tokens: 2188
+    ParseAgent tokens: 0
+    ForecastAgent tokens: 0
+    WeatherHistoryAgent tokens: 0
+    SolutionAgent tokens: 10814
+    ReviewerAgent tokens: 5592
+    Total tokens: 18594
+
+    Input: 48
+    PromptAgent tokens: 2194
+    ParseAgent tokens: 0
+    ForecastAgent tokens: 0
+    WeatherHistoryAgent tokens: 0
+    SolutionAgent tokens: 11254
+    ReviewerAgent tokens: 5909
+    Total tokens: 19357
+
+    Input: 49
+    PromptAgent tokens: 2262
+    ParseAgent tokens: 0
+    ForecastAgent tokens: 0
+    WeatherHistoryAgent tokens: 0
+    SolutionAgent tokens: 11221
+    ReviewerAgent tokens: 5716
+    Total tokens: 19199
+
+    Input: 51
+    PromptAgent tokens: 1512
+    ParseAgent tokens: 0
+    ForecastAgent tokens: 7379
+    WeatherHistoryAgent tokens: 0
+    SolutionAgent tokens: 3067
+    ReviewerAgent tokens: 6397
+    Total tokens: 18355
+
+    Input: 53
+    PromptAgent tokens: 7746
+    ParseAgent tokens: 0
+    ForecastAgent tokens: 0
+    WeatherHistoryAgent tokens: 0
+    SolutionAgent tokens: 3623
+    ReviewerAgent tokens: 5202
+    Total tokens: 16571
+
+    Input: 53
+    PromptAgent tokens: 7824
+    ParseAgent tokens: 0
+    ForecastAgent tokens: 0
+    WeatherHistoryAgent tokens: 0
+    SolutionAgent tokens: 3567
+    ReviewerAgent tokens: 5233
+    Total tokens: 16624
